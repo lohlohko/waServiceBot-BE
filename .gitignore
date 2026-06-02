@@ -1,2 +1,8 @@
 .env
 node_modules
+
+src/sessions/botSessions/*
+!src/sessions/botSessions/.gitkeep
+
+src/sessions/uploads/*
+!src/sessions/uploads/.gitkeep

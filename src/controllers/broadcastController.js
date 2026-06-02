@@ -5,6 +5,7 @@ import { getSessionIdFromRequest } from '../utils/session.js';
 import {
   UPLOAD_DIR,
   getSpreadsheetBatches,
+  getSpreadsheetRows,
   getBroadcastStatus,
   startBroadcast,
   pauseBroadcast,
@@ -52,10 +53,12 @@ export const handleUploadSpreadsheet = (req, res) => {
 
     try {
       const batches = getSpreadsheetBatches(req.file.path);
+      const rows = getSpreadsheetRows(req.file.path);
       return ok(res, 'Spreadsheet berhasil diupload', {
         filePath: req.file.path,
         fileName: req.file.originalname,
-        batches
+        batches,
+        rows
       });
     } catch (error) {
       return serverError(res, error.message || 'Gagal membaca spreadsheet');
@@ -77,9 +80,11 @@ export const handleUploadImage = (req, res) => {
 };
 
 // ─── GET /api/broadcast/status ────────────────────────────────────────────────
-export const getStatus = (_req, res) => {
+// Now scoped to the requesting session — other sessions see their own state.
+export const getStatus = (req, res) => {
   try {
-    return ok(res, 'Status broadcast', getBroadcastStatus());
+    const sessionId = getSessionIdFromRequest(req);
+    return ok(res, 'Status broadcast', getBroadcastStatus(sessionId));
   } catch (error) {
     return serverError(res, error.message || 'Gagal mengambil status');
   }
@@ -103,9 +108,10 @@ export const start = (req, res) => {
 };
 
 // ─── POST /api/broadcast/pause ────────────────────────────────────────────────
-export const pause = (_req, res) => {
+export const pause = (req, res) => {
   try {
-    pauseBroadcast();
+    const sessionId = getSessionIdFromRequest(req);
+    pauseBroadcast(sessionId);
     return ok(res, 'Broadcast dijeda');
   } catch (error) {
     return serverError(res, error.message || 'Gagal menjeda broadcast');
@@ -113,9 +119,10 @@ export const pause = (_req, res) => {
 };
 
 // ─── POST /api/broadcast/resume ───────────────────────────────────────────────
-export const resume = (_req, res) => {
+export const resume = (req, res) => {
   try {
-    resumeBroadcast();
+    const sessionId = getSessionIdFromRequest(req);
+    resumeBroadcast(sessionId);
     return ok(res, 'Broadcast dilanjutkan');
   } catch (error) {
     return serverError(res, error.message || 'Gagal melanjutkan broadcast');
@@ -123,9 +130,10 @@ export const resume = (_req, res) => {
 };
 
 // ─── POST /api/broadcast/stop ─────────────────────────────────────────────────
-export const stop = (_req, res) => {
+export const stop = (req, res) => {
   try {
-    stopBroadcast();
+    const sessionId = getSessionIdFromRequest(req);
+    stopBroadcast(sessionId);
     return ok(res, 'Broadcast dihentikan');
   } catch (error) {
     return serverError(res, error.message || 'Gagal menghentikan broadcast');
@@ -135,7 +143,8 @@ export const stop = (_req, res) => {
 // ─── GET /api/broadcast/download ─────────────────────────────────────────────
 export const download = (req, res) => {
   try {
-    const filePath = getSpreadsheetPath();
+    const sessionId = getSessionIdFromRequest(req);
+    const filePath = getSpreadsheetPath(sessionId);
     if (!filePath || !fs.existsSync(filePath)) {
       return badRequest(res, 'Tidak ada file spreadsheet yang tersedia untuk diunduh');
     }
